@@ -2,64 +2,63 @@
 
 ShapG2P: a strategy for biomarker pathway enrichment with PPI network topology and SHAP analysis.
 
-输入一个基因符号列表（文件或直接传 list），输出 `{通路名: SHAP 分数}` 字典，按分数从大到小排序。
+Given a list of gene symbols (from a file or passed directly as a list), it returns a `{pathway: SHAP score}` dictionary sorted by score in descending order.
 
-## 方法
+## Method
 
-- 每个基因以其到各通路基因的 PPI 网络距离（`exp(-d/2)` 相似度）为特征；
-- XGBoost 分类器区分 biomarker 与背景基因（全局 1:1 欠采样，SEED=42）；
-- 用 SHAP（`pred_contribs`）计算每条通路特征的平均绝对贡献 = 通路 SHAP 分数。
+- Each gene is featurized by its PPI network distance to the genes of each pathway (`exp(-d/2)` similarity);
+- An XGBoost classifier distinguishes biomarkers from background genes (global 1:1 undersampling, SEED=42);
+- The mean absolute SHAP contribution (`pred_contribs`) of each pathway feature is used as the pathway SHAP score.
 
-内置数据：STRING 人类 PPI 网络（17613 基因）、KEGG / Hallmark / WikiPathway 通路。
+Bundled data: STRING human PPI network (17,613 genes), KEGG / Hallmark / WikiPathway pathways.
 
-## 安装
+## Install
 
 ```bash
 pip install shapg2p
 ```
 
-或本地开发安装：
+Or for local development:
 
 ```bash
 cd shapg2p_pkg
 pip install -e .
 ```
 
-## 用法
+## Usage
 
 ```python
 from shapg2p import score_pathways
 
-# 方式 1: 直接传基因符号列表
+# 1. pass a list of gene symbols
 scores = score_pathways(['TP53', 'ATM', 'APOE', 'SOD1', 'CDKN2A'])
 
-# 方式 2: 传文件路径 (CSV/TSV/TXT, 含常见基因列如 gene symbol / gene / symbol)
+# 2. pass a file path (CSV/TSV/TXT with a common gene column, e.g. "gene symbol")
 scores = score_pathways('my_biomarkers.csv')
 
-# 方式 3: 传逗号/空格/换行分隔的字符串
+# 3. pass a comma/space/newline-delimited string
 scores = score_pathways('TP53, ATM, APOE')
 
-# 输出: 字典, 按 SHAP 分数从大到小
+# Output: dict sorted by SHAP score descending
 print(scores)
 # {'p53 signaling pathway': 0.42, 'Alzheimer disease': 0.31, ...}
 ```
 
-运行约需 1–3 分钟（一次 XGBoost 训练 + 全基因 SHAP 计算）。
+Each call takes about 1–3 minutes (one XGBoost training + full-genome SHAP computation).
 
-## 输出说明
+## Output
 
-返回 `dict[str, float]`：key 为通路名，value 为该通路的 mean |SHAP| 分数，按分数降序；
-仅包含分数 > 0 的通路（无关通路不返回）。同名通路（出现在多个数据库中）取最大分数。
+Returns `dict[str, float]`: pathway name → mean |SHAP| score, sorted descending. Only pathways with score > 0 are returned (irrelevant pathways are omitted). Duplicate pathway names across databases take the maximum score.
 
-## 上传到 PyPI（供他人 pip install）
+## Publish to PyPI (for distribution)
 
-### 1. 注册账号并创建 API token
+### 1. Register an account and create an API token
 
-- 注册：https://pypi.org/account/register/
-- 创建 token：https://pypi.org/manage/account/token/ （Scope 选整个账号即可）
-- token 形如 `pypi-AgEIcHlwaS5vcmcC...`，只显示一次，保存好
+- Register: https://pypi.org/account/register/
+- Create a token: https://pypi.org/manage/account/token/ (Scope: "Entire account")
+- The token looks like `pypi-AgEIcHlwaS5vcmcC...`, shown only once — save it.
 
-### 2. 构建
+### 2. Build
 
 ```bash
 pip install --upgrade build twine
@@ -67,35 +66,34 @@ cd shapg2p_pkg
 python -m build
 ```
 
-生成 `dist/shapg2p-0.1.0.tar.gz` 和 `dist/shapg2p-0.1.0-py3-none-any.whl`。
+This produces `dist/shapg2p-0.1.1.tar.gz` and `dist/shapg2p-0.1.1-py3-none-any.whl`.
 
-### 3. 先传 TestPyPI 验证（可选但推荐）
+### 3. Upload to TestPyPI first (optional but recommended)
 
 ```bash
 python -m twine upload --repository testpypi dist/*
-# 用户名输入: __token__   密码输入: pypi-xxx (你的 API token)
+# Username: __token__    Password: your API token
 
-# 验证安装
+# Verify installation
 pip install --index-url https://test.pypi.org/simple/ shapg2p
 ```
 
-### 4. 上传正式 PyPI
+### 4. Upload to PyPI
 
 ```bash
 python -m twine upload dist/*
 ```
 
-同样输入 `__token__` + API token。上传成功后即可：
+Enter `__token__` as the username and your API token as the password. After a successful upload:
 
 ```bash
 pip install shapg2p
 ```
 
-### 5. 更新版本
+### 5. Release a new version
 
-修改 `pyproject.toml` 的 `version`（如 `0.1.1`），重新 `python -m build` 并 `twine upload dist/*`。
-PyPI 不允许重复上传相同版本号。
+Bump `version` in `pyproject.toml` (e.g. `0.1.1`), then `python -m build` and `twine upload dist/*` again. PyPI does not allow re-uploading the same version number.
 
-## 依赖
+## Dependencies
 
-numpy / pandas / scipy / scikit-learn / xgboost（`pip install shapg2p` 时自动安装）。
+numpy / pandas / scipy / scikit-learn / xgboost (installed automatically with `pip install shapg2p`).

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shapg2p"
-version = "0.1.0"
+version = "0.1.1"
 description = "ShapG2P: biomarker pathway enrichment with PPI network topology and SHAP analysis"
 readme = "README.md"
 license = { text = "MIT" }

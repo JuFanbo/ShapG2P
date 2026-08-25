@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-"""ShapG2P 核心: 输入基因列表 (文件或 gene symbol list),
-输出 {通路名: SHAP 分数} 字典, 按分数从大到小。
+"""ShapG2P core: given a list of genes (file path or gene symbol list),
+return a {pathway: SHAP score} dictionary sorted in descending order.
 
-方法: 每个基因用其到各通路基因的 PPI 网络距离 (1/(d+1)-类相似度,
-exp(-d/2)) 作为特征, XGBoost 区分 biomarker 与背景基因 (全局 1:1
-欠采样, SEED=42), 用 SHAP (pred_contribs) 得到每条通路特征对分类的
-平均绝对贡献, 即为通路 SHAP 分数。
+Method: each gene is featurized by its PPI network distance to the genes
+of each pathway (1/(d+1)-like similarity, exp(-d/2)); an XGBoost classifier
+distinguishes biomarkers from background genes (global 1:1 undersampling,
+SEED=42); SHAP (pred_contribs) mean absolute contribution of each pathway
+feature is used as the pathway SHAP score.
 """
 import csv
 import json
@@ -28,7 +29,7 @@ XGB_PARAMS = dict(
     eval_metric='logloss',
 )
 
-# final 模型 = 下列单特征拼接 (与论文工作流一致)
+# Final model = concatenation of the following single features (same as the paper workflow)
 FINAL_FEATS = ['kegg_min', 'hallmark_min', 'hallmark_mean',
                'wikipathway_min', 'wikipathway_mean']
 DB_NAME = {'kegg': 'KEGG', 'hallmark': 'Hallmark',
@@ -42,7 +43,7 @@ GENE_COLS = ['string name', 'gene symbol', 'gene', 'symbol', 'marker',
 
 
 def _dist_to_sim(X):
-    """距离矩阵 → 相似度矩阵 (0-1), inf (不连通) 映射为 0。"""
+    """Distance matrix -> similarity matrix (0-1); inf (disconnected) -> 0."""
     out = np.exp(-X / DIST_SIGMA)
     out[np.isinf(X)] = 0.0
     return out
@@ -54,7 +55,7 @@ def _load_json(name):
 
 
 def _open_csv(path):
-    """按 utf-8-sig -> cp1252 顺序尝试打开 CSV。"""
+    """Try opening a CSV with utf-8-sig, then cp1252."""
     for enc in ('utf-8-sig', 'cp1252'):
         try:
             f = open(path, encoding=enc, newline='')
@@ -67,7 +68,7 @@ def _open_csv(path):
 
 
 def _load_pos_genes(path, gene_set):
-    """读标志物 CSV (兼容常见基因列名 / STRING_ID / 第一列兜底)。"""
+    """Read the biomarker CSV (common gene columns / STRING_ID / first column fallback)."""
     ensp2sym = {}
     with open(os.path.join(DATA_DIR, 'info_gene.csv'),
               encoding='utf-8') as f:
@@ -79,7 +80,7 @@ def _load_pos_genes(path, gene_set):
 
     f, reader = _open_csv(path)
     if reader is None:
-        raise ValueError(f'无法解码文件: {path}')
+        raise ValueError(f'Unable to decode file: {path}')
     norm = lambda s: s.strip().lower().replace(' ', '') \
         .replace('.', '').replace('_', '')
     fields = reader.fieldnames or []
@@ -101,7 +102,7 @@ def _load_pos_genes(path, gene_set):
 
 
 def _parse_input(genes, gene_set):
-    """输入归一化: 文件路径 / 基因列表 / 分隔符字符串 -> 网络内基因集合。"""
+    """Normalize input: file path / gene list / delimited string -> in-network gene set."""
     if isinstance(genes, str) and os.path.isfile(genes):
         return _load_pos_genes(genes, gene_set)
     if isinstance(genes, str):
@@ -114,7 +115,7 @@ def _parse_input(genes, gene_set):
 
 
 def _load_features():
-    """返回 final 特征矩阵 (17613 x N) 与通路元数据 [(db, stat, pathway)]。"""
+    """Return the final feature matrix (17613 x N) and pathway metadata [(db, stat, pathway)]."""
     parts, meta = [], []
     for m in FINAL_FEATS:
         db, stat = m.rsplit('_', 1)
@@ -127,37 +128,37 @@ def _load_features():
 
 
 def score_pathways(genes, verbose=True):
-    """对输入基因列表做 SHAP 通路评分。
+    """Score pathways with SHAP for a given list of genes.
 
-    参数
-    ----
-    genes : list[str] 或 str
-        基因符号列表, 或包含基因符号的 CSV/TSV/TXT 文件路径
-        (文件需含常见基因列, 如 "gene symbol"/"gene"/"symbol" 等),
-        或逗号/空格/换行分隔的字符串。
+    Parameters
+    ----------
+    genes : list[str] or str
+        Gene symbol list, or a path to a CSV/TSV/TXT file containing gene
+        symbols (common gene columns such as "gene symbol"/"gene"/"symbol"
+        are auto-detected), or a comma/space/newline-delimited string.
     verbose : bool
-        是否打印进度。
+        Whether to print progress.
 
-    返回
-    ----
+    Returns
+    -------
     dict[str, float]
-        {通路名: mean_abs_shap}, 按 SHAP 分数从大到小排序;
-        仅保留分数 > 0 的通路。
+        {pathway: mean_abs_shap}, sorted in descending order;
+        only pathways with score > 0 are kept.
     """
     gene_list = _load_json('genes.json')
     gene_set = set(gene_list)
 
     pos = _parse_input(genes, gene_set)
     if not pos:
-        raise ValueError('输入中未匹配到任何网络内基因, '
-                         '请检查基因符号 (建议使用 HGNC 标准符号)')
+        raise ValueError('No input gene matched the network; '
+                         'please check your gene symbols (HGNC symbols recommended)')
     if verbose:
-        print(f'网络基因: {len(gene_set)}, 匹配 biomarker: {len(pos)}')
+        print(f'Network genes: {len(gene_set)}, matched biomarkers: {len(pos)}')
 
     X_all, meta = _load_features()
     y_all = np.array([1 if g in pos else 0 for g in gene_list], np.int32)
 
-    # 全局 1:1 欠采样 (正样本全留, 负样本随机抽至等量, SEED=42)
+    # Global 1:1 undersampling (keep all positives, sample negatives to match, SEED=42)
     rng = np.random.default_rng(SEED)
     pos_idx = np.where(y_all == 1)[0]
     neg_idx = np.where(y_all == 0)[0]
@@ -170,13 +171,13 @@ def score_pathways(genes, verbose=True):
         sample_idx = np.sort(np.concatenate([pos_idx, keep]))
     y = y_all[sample_idx]
     if verbose:
-        print(f'欠采样后: pos={int(y.sum())}, neg={int((y == 0).sum())}, '
-              f'特征 {X_all.shape[1]} 维, 训练中 ...')
+        print(f'After undersampling: pos={int(y.sum())}, neg={int((y == 0).sum())}, '
+              f'{X_all.shape[1]} features, training ...')
 
     clf = xgb.XGBClassifier(**XGB_PARAMS)
     clf.fit(X_all[sample_idx], y)
 
-    # SHAP 在全部基因上计算
+    # Compute SHAP on all genes
     contribs = clf.get_booster().predict(DMatrix(X_all), pred_contribs=True)
     sv = contribs[:, :-1]
 
@@ -184,12 +185,12 @@ def score_pathways(genes, verbose=True):
     rank['mean_abs_shap'] = np.abs(sv).mean(axis=0)
     rank['dataset'] = rank['dataset'].map(DB_NAME)
 
-    # 通路级聚合: 同名通路取最大分数, 仅保留分数 > 0, 按分数降序
+    # Pathway-level aggregation: max score for duplicated names, keep score > 0, sort descending
     result = (rank.groupby('pathway')['mean_abs_shap'].max()
                   .loc[lambda s: s > 0]
                   .sort_values(ascending=False).to_dict())
     if verbose:
         top = list(result.items())[:5]
-        print('Top 5 通路: ' + ', '.join(
+        print('Top 5 pathways: ' + ', '.join(
             f'{pw}={v:.4f}' for pw, v in top))
     return result
