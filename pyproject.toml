@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "shapg2p"
+version = "0.1.0"
+description = "ShapG2P: biomarker pathway enrichment with PPI network topology and SHAP analysis"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "ShapG2P" }]
+keywords = ["SHAP", "pathway enrichment", "PPI network", "biomarker", "XGBoost"]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.21",
+    "pandas>=1.3",
+    "scipy>=1.7",
+    "scikit-learn>=1.0",
+    "xgboost>=1.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourname/shapg2p"
+Issues = "https://github.com/yourname/shapg2p/issues"
+
+[tool.setuptools]
+packages = ["shapg2p"]
+
+[tool.setuptools.package-data]
+shapg2p = ["data/*.npz", "data/*.json", "data/*.csv"]
