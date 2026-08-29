@@ -30,16 +30,20 @@ pip install -e .
 ```python
 from shapg2p import score_pathways
 
-# 1. pass a list of gene symbols
-scores = score_pathways(['TP53', 'ATM', 'APOE', 'SOD1', 'CDKN2A'])
+genes = ['TP53', 'ATM', 'APOE', 'SOD1', 'CDKN2A', 'BRCA1', 'BRCA2', 'PTEN',
+         'RB1', 'MYC', 'EGFR', 'KRAS', 'PIK3CA', 'AKT1', 'MTOR', 'BCL2',
+         'IL6', 'TNF', 'IL1B', 'IL10', 'CXCL8', 'TGFB1', 'VEGFA', 'MMP9',
+         'COL1A1', 'SPP1', 'CD44', 'STAT3', 'NFKB1', 'HIF1A', 'SIRT1',
+         'FOXO3', 'NFE2L2', 'KEAP1', 'TERT', 'LMNA', 'WRN', 'PINK1',
+         'PARK7', 'SNCA']
 
-# 2. pass a file path (CSV/TSV/TXT with a common gene column, e.g. "gene symbol")
-scores = score_pathways('my_biomarkers.csv')
+# from a gene symbol list
+scores = score_pathways(genes)
 
-# 3. pass a comma/space/newline-delimited string
-scores = score_pathways('TP53, ATM, APOE')
+# or from a file (CSV/TSV/TXT; common gene columns such as "gene symbol"
+# are auto-detected, STRING_ID is also supported)
+# scores = score_pathways('my_biomarkers.csv')
 
-# Output: dict sorted by SHAP score descending
 print(scores)
 # {'p53 signaling pathway': 0.42, 'Alzheimer disease': 0.31, ...}
 ```
@@ -49,50 +53,6 @@ Each call takes about 1–3 minutes (one XGBoost training + full-genome SHAP com
 ## Output
 
 Returns `dict[str, float]`: pathway name → mean |SHAP| score, sorted descending. Only pathways with score > 0 are returned (irrelevant pathways are omitted). Duplicate pathway names across databases take the maximum score.
-
-## Publish to PyPI (for distribution)
-
-### 1. Register an account and create an API token
-
-- Register: https://pypi.org/account/register/
-- Create a token: https://pypi.org/manage/account/token/ (Scope: "Entire account")
-- The token looks like `pypi-AgEIcHlwaS5vcmcC...`, shown only once — save it.
-
-### 2. Build
-
-```bash
-pip install --upgrade build twine
-cd shapg2p_pkg
-python -m build
-```
-
-This produces `dist/shapg2p-0.1.1.tar.gz` and `dist/shapg2p-0.1.1-py3-none-any.whl`.
-
-### 3. Upload to TestPyPI first (optional but recommended)
-
-```bash
-python -m twine upload --repository testpypi dist/*
-# Username: __token__    Password: your API token
-
-# Verify installation
-pip install --index-url https://test.pypi.org/simple/ shapg2p
-```
-
-### 4. Upload to PyPI
-
-```bash
-python -m twine upload dist/*
-```
-
-Enter `__token__` as the username and your API token as the password. After a successful upload:
-
-```bash
-pip install shapg2p
-```
-
-### 5. Release a new version
-
-Bump `version` in `pyproject.toml` (e.g. `0.1.1`), then `python -m build` and `twine upload dist/*` again. PyPI does not allow re-uploading the same version number.
 
 ## Dependencies
 

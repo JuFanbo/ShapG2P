@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """ShapG2P: biomarker pathway enrichment with PPI network topology and SHAP.
 
-用法:
+Usage:
     from shapg2p import score_pathways
 
-    scores = score_pathways(['TP53', 'ATM', 'APOE', ...])   # 基因列表
-    scores = score_pathways('biomarkers.csv')               # 或文件路径
+    scores = score_pathways(['TP53', 'ATM', 'APOE', ...])   # gene list
+    scores = score_pathways('biomarkers.csv')               # or a file path
 """
 from .core import score_pathways
 
